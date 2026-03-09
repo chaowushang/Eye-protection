@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          护眼脚本
 // @namespace     https://github.com/chaowushang/eye-protection
-// @version        2.0
+// @version        2.1
 // @author         wushang
 // @description   修改网页背景色，优化性能。
 // @match         *://*/*
@@ -9,6 +9,7 @@
 // @grant          GM_setValue
 // @grant          GM_getValue
 // @grant          GM_addStyle
+// @run-at         document-start
 // @downloadURL    https://fastly.jsdelivr.net/gh/chaowushang/eye-protection@main/huyan.user.js
 // @updateURL      https://fastly.jsdelivr.net/gh/chaowushang/eye-protection@main/huyan.user.js
 // ==/UserScript==
@@ -23,94 +24,17 @@
         olive:  { name: "淡橄榄", val: "#E1E6D7" }
     };
 
+    const currentSite = window.location.hostname;
+    // 获取禁用列表，确保实时性
+    const getDisabledSites = () => GM_getValue("disabledSites", []);
+    const isDisabled = getDisabledSites().includes(currentSite);
+
     const currentColor = GM_getValue("colorValue", "green");
     const bgVal = COLORS[currentColor]?.val || COLORS.green.val;
 
-    // --- 逻辑 1: 注入 CSS 核心样式 ---
-    // 强制修改被标记为 huyan-block 的元素及其内部所有白色背景的子元素
-    GM_addStyle(`
-        /* 命中内容区块 */
-        .huyan-block {
-            background-color: ${bgVal} !important;
-            background-image: none !important;
-            box-shadow: none !important;
-        }
-        /* 穿透处理：内容区块内部的白色或透明子元素，全部强制跟随护眼色 */
-        .huyan-block div, 
-        .huyan-block section, 
-        .huyan-block article, 
-        .huyan-block td, 
-        .huyan-block .cell,
-        .huyan-block .inner {
-            background-color: transparent !important;
-            background-image: none !important;
-        }
-        /* 针对 V2EX 等站点的帖子列表行做特殊增强 */
-        .huyan-block [class*="cell"], .huyan-block [class*="inner"] {
-            background-color: transparent !important;
-        }
-    `);
-
-    // --- 逻辑 2: 判定函数 ---
-    const processElement = (el) => {
-        if (el.nodeType !== 1) return;
-        
-        const tagName = el.tagName;
-        // 1. 绝对不处理 html, body (保证两侧原色)
-        if (tagName === 'HTML' || tagName === 'BODY') return;
-
-        // 2. 获取元素宽度
-        const rect = el.getBoundingClientRect();
-        if (rect.width < 50 || rect.height < 20) return; // 忽略过小的元素
-
-        const winW = window.innerWidth;
-        
-        // 【核心过滤逻辑】
-        // 如果元素宽度占满了屏幕（>95%），则判定为背景层或包装层，不予处理。
-        // 这样可以完美保留 V2EX 等站左右两侧的原始背景。
-        if (winW > 800 && rect.width > winW * 0.95) return;
-
-        // 3. 获取背景色判断
-        const style = window.getComputedStyle(el);
-        const bg = style.backgroundColor;
-        const rgb = bg.match(/\d+/g);
-
-        if (rgb && rgb.length >= 3) {
-            const [r, g, b] = rgb.map(Number);
-            // 判定为“白色系”
-            if (r > 240 && g > 240 && b > 240) {
-                el.classList.add('huyan-block');
-            }
-        }
-    };
-
-    // --- 逻辑 3: 观察者模式（处理异步加载） ---
-    const startObserving = () => {
-        // 先扫描一次
-        document.querySelectorAll('div, section, article, main, table, aside').forEach(processElement);
-
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) {
-                        processElement(node);
-                        // 扫描新节点的子孙
-                        const children = node.querySelectorAll('div, section, article');
-                        for (let child of children) processElement(child);
-                    }
-                });
-            }
-        });
-        
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-    };
-
-    // --- 菜单与初始化 ---
+    // --- 核心更新 1: 简化菜单逻辑，解决重复出现问题 ---
     const setupMenu = () => {
-        const currentSite = window.location.hostname;
-        const disabledSites = GM_getValue("disabledSites", []);
-        const isDisabled = disabledSites.includes(currentSite);
-
+        // 注册颜色选择菜单
         Object.keys(COLORS).forEach(key => {
             const icon = currentColor === key ? "● " : "○ ";
             GM_registerMenuCommand(`${icon}${COLORS[key].name}`, () => {
@@ -119,24 +43,115 @@
             });
         });
 
-        GM_registerMenuCommand(isDisabled ? "✅ 在此站启用" : "❌ 在此站禁用", () => {
-            let sites = GM_getValue("disabledSites", []);
-            isDisabled ? (sites = sites.filter(s => s !== currentSite)) : sites.push(currentSite);
-            GM_setValue("disabledSites", sites);
-            location.reload();
-        });
+        // 注册启用/禁用菜单（二选一）
+        if (isDisabled) {
+            GM_registerMenuCommand("✅ 启用", () => {
+                const sites = getDisabledSites().filter(s => s !== currentSite);
+                GM_setValue("disabledSites", sites);
+                location.reload();
+            });
+        } else {
+            GM_registerMenuCommand("❌ 禁用", () => {
+                const sites = getDisabledSites();
+                sites.push(currentSite);
+                GM_setValue("disabledSites", [...new Set(sites)]); // 去重保存
+                location.reload();
+            });
+        }
     };
 
+    // --- 逻辑 1: 注入 CSS 核心样式 ---
+    const injectStyles = () => {
+        GM_addStyle(`
+            .huyan-block {
+                background-color: ${bgVal} !important;
+                background-image: none !important;
+                box-shadow: none !important;
+            }
+            .huyan-block div, 
+            .huyan-block section, 
+            .huyan-block article, 
+            .huyan-block td, 
+            .huyan-block .cell,
+            .huyan-block .inner {
+                background-color: transparent !important;
+                background-image: none !important;
+            }
+            .huyan-block [class*="cell"], .huyan-block [class*="inner"] {
+                background-color: transparent !important;
+            }
+        `);
+    };
+
+    // --- 逻辑 2: 判定函数 (优化性能：减少正则解析次数) ---
+    const rgbRegex = /\d+/g;
+    const processElement = (el) => {
+        if (el.nodeType !== 1 || el.classList.contains('huyan-block')) return;
+        
+        const tagName = el.tagName;
+        if (tagName === 'HTML' || tagName === 'BODY') return;
+
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 50 || rect.height < 20) return;
+
+        const winW = window.innerWidth;
+        if (winW > 800 && rect.width > winW * 0.95) return;
+
+        const style = window.getComputedStyle(el);
+        const bg = style.backgroundColor;
+        const rgb = bg.match(rgbRegex);
+
+        if (rgb && rgb.length >= 3) {
+            const r = Number(rgb[0]), g = Number(rgb[1]), b = Number(rgb[2]);
+            // 判定为“白色系”：R,G,B均大于240且色差较小
+            if (r > 240 && g > 240 && b > 240) {
+                el.classList.add('huyan-block');
+            }
+        }
+    };
+
+    // --- 逻辑 3: 观察者模式 ---
+    const startObserving = () => {
+        const targetTags = ['DIV', 'SECTION', 'ARTICLE', 'MAIN', 'TABLE', 'ASIDE'];
+        
+        // 初始扫描 (优化：只扫描容器类标签)
+        document.querySelectorAll('div, section, article, main, table, aside').forEach(processElement);
+
+        const observer = new MutationObserver((mutations) => {
+            for (let i = 0; i < mutations.length; i++) {
+                const addedNodes = mutations[i].addedNodes;
+                for (let j = 0; j < addedNodes.length; j++) {
+                    const node = addedNodes[j];
+                    if (node.nodeType === 1) {
+                        processElement(node);
+                        // 局部查找，避免全局全标签扫描
+                        const children = node.querySelectorAll('div, section, article');
+                        for (let k = 0; k < children.length; k++) {
+                            processElement(children[k]);
+                        }
+                    }
+                }
+            }
+        });
+        
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+    };
+
+    // --- 执行流程 ---
     setupMenu();
-    const currentSite = window.location.hostname;
-    if (!GM_getValue("disabledSites", []).includes(currentSite)) {
+
+    // 核心更新 2: 严格校验禁用状态，防止意外启动
+    if (!isDisabled) {
+        injectStyles();
+        
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', startObserving);
         } else {
             startObserving();
         }
-        // load事件后再补刷一次，确保宽度计算最准确
+
         window.addEventListener('load', () => {
+            // 页面完全加载后最后补刷一次
             document.querySelectorAll('div, section, article').forEach(processElement);
         });
     }
