@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         微信读书网页版空格翻页
+// @name         微信读书网页版空格与滚轮翻页
 // @namespace    https://github.com/chaowushang/wechat-read-space-flip
-// @version      1.0
+// @version      1.1
 // @author       wushang
-// @description  在微信读书网页版阅读时，可以通过按下空格键跳到下一页。
+// @description  在微信读书网页版阅读时，可以通过按下空格键跳到下一页，也可以使用鼠标滚轮上下翻页。自动防误触。
 // @match        *://weread.qq.com/*
 // @grant        none
 // @run-at       document-start
@@ -14,51 +14,103 @@
 
     /**
      * 核心逻辑说明：
-     * 1. 微信读书原生支持“右方向键”翻页。
-     * 2. 脚本拦截空格键，将其转换为“右方向键”信号发送给系统。
-     * 3. 自动排除输入框焦点，防止打字时误翻页。
+     * 1. 微信读书原生支持左右方向键翻页。
+     * 2. 空格键拦截：转换为向右方向键信号发送。
+     * 3. 鼠标滚轮拦截：向下滚动转为向右方向键，向上滚动转为向左方向键。
+     * 4. 频率限制：加入冷却机制，防止滚轮一次触发引发连续翻十页。
+     * 5. 区域识别：智能避开目录、笔记面板等自身需要垂直滚动的 UI 区域。
      */
 
+    // 辅助函数：构造并派发方向键事件
+    const dispatchKeyEvent = (keyName, keyCode) => {
+        const nextEvent = new KeyboardEvent('keydown', {
+            key: keyName,
+            keyCode: keyCode,
+            code: keyName,
+            which: keyCode,
+            bubbles: true,
+            cancelable: true
+        });
+        window.dispatchEvent(nextEvent);
+        document.dispatchEvent(nextEvent);
+    };
+
     const init = () => {
+        // --- 1. 监听空格键翻页 ---
         window.addEventListener('keydown', (e) => {
-            // 检查按键是否为空格键
             if (e.key === ' ' || e.code === 'Space') {
                 const activeEl = document.activeElement;
-
-                // 安全检查：如果焦点在以下区域，则允许正常输入空格，不触发翻页
-                // 1. 输入框 (INPUT)
-                // 2. 文本域 (TEXTAREA)
-                // 3. 可编辑的 HTML 元素 (contenteditable="true"，如微信读书的笔记输入区)
+                
+                // 确保在输入框打字时不触发翻页
                 const isTyping = activeEl.tagName === 'INPUT' || 
                                  activeEl.tagName === 'TEXTAREA' || 
                                  activeEl.isContentEditable;
 
                 if (!isTyping) {
-                    // 1. 阻止浏览器默认行为（即空格导致的页面向下滚动）
                     e.preventDefault();
-                    // 2. 阻止事件继续传播（防止微信读书原生逻辑干扰）
                     e.stopImmediatePropagation();
-
-                    // 3. 构造并派发一个“向右箭头”的按键事件
-                    const nextEvent = new KeyboardEvent('keydown', {
-                        key: 'ArrowRight',
-                        keyCode: 39,
-                        code: 'ArrowRight',
-                        which: 39,
-                        bubbles: true,
-                        cancelable: true
-                    });
-
-                    // 同时发送给 window 和 document 确保微信读书的状态机能捕获到
-                    window.dispatchEvent(nextEvent);
-                    document.dispatchEvent(nextEvent);
+                    dispatchKeyEvent('ArrowRight', 39);
                 }
             }
-        }, true); // 使用捕获阶段 (true) 拦截，确保优先级最高
+        }, true);
+
+        // --- 2. 监听鼠标滚轮翻页 ---
+        let isThrottled = false; // 用于控制翻页频率的冷却锁
+        
+        window.addEventListener('wheel', (e) => {
+            let target = e.target;
+            let shouldIgnore = false;
+            
+            // 向上遍历DOM树，检查鼠标是否停留在需要原生滚动的弹窗、侧边栏上
+            while (target && target !== document.body) {
+                // 如果元素内容超出了自身高度，且设置了可以垂直滚动，则应该放行原生的滚轮操作
+                const style = window.getComputedStyle(target);
+                const isScrollable = target.scrollHeight > target.clientHeight && 
+                                    (style.overflowY === 'auto' || style.overflowY === 'scroll');
+                
+                // 特殊 UI 容器白名单（例如目录、想法面板）
+                const className = (typeof target.className === 'string') ? target.className : '';
+                const isUIContainer =['readerCatalog', 'readerNotePanel', 'wr_white_dialog', 'menu_container'].some(cls => className.includes(cls));
+
+                if (isScrollable || isUIContainer) {
+                    shouldIgnore = true;
+                    break;
+                }
+                target = target.parentElement;
+            }
+
+            // 如果鼠标悬停在弹窗或可滚动列表内，脚本不介入，放行默认操作
+            if (shouldIgnore) return;
+
+            // 拦截正文阅读区的默认滚轮行为
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            // 如果仍在冷却时间内，直接忽略本次滚轮事件
+            if (isThrottled) return;
+
+            if (e.deltaY > 0) {
+                // 滚轮向下滚动 -> 下一页 (模拟右方向键)
+                dispatchKeyEvent('ArrowRight', 39);
+                lockScroll();
+            } else if (e.deltaY < 0) {
+                // 滚轮向上滚动 -> 上一页 (模拟左方向键)
+                dispatchKeyEvent('ArrowLeft', 37);
+                lockScroll();
+            }
+        }, { passive: false, capture: true }); // 使用 capture 并取消 passive，确保能够调用 preventDefault
+
+        // 翻页冷却计时器
+        const lockScroll = () => {
+            isThrottled = true;
+            setTimeout(() => {
+                isThrottled = false;
+            }, 200); // 冷却时间 300 毫秒。如果你觉得翻页慢，可以调小(如200)；觉得翻得太快容易飞，可以调大(如400)
+        };
     };
 
     // 启动监听
     init();
 
-    console.log('微信读书空格翻页脚本已加载');
+    console.log('微信读书空格与滚轮翻页脚本已加载');
 })();
