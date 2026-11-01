@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         护眼脚本
 // @namespace    https://github.com/chaowushang/eye-protection
-// @version      2.2
+// @version      2.2.1
 // @author       wushang
 // @description  四种护眼配色、站点开关与动态内容适配，保留图片及原有深色区域。
 // @match        *://*/*
@@ -11,8 +11,8 @@
 // @grant        GM_getValue
 // @license      Apache-2.0
 // @run-at       document-start
-// @downloadURL  https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/eye-protection/eye-protection/huyan.user.js
-// @updateURL    https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/eye-protection/eye-protection/huyan.user.js
+// @downloadURL  https://raw.githubusercontent.com/chaowushang/Eye-protection/main/eye-protection/huyan.user.js
+// @updateURL    https://raw.githubusercontent.com/chaowushang/Eye-protection/main/eye-protection/huyan.user.js
 // ==/UserScript==
 
 (() => {

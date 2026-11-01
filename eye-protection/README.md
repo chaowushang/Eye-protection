@@ -4,11 +4,15 @@
 
 ## 安装
 
-[安装 v2.2](https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/eye-protection/eye-protection/huyan.user.js)。需先安装 Tampermonkey 或兼容用户脚本管理器。沿用旧脚本的 name/namespace 及 `colorValue`、`disabledSites` 存储键；升级后检查是否替换原实例，同一脚本只启用一份。根目录旧入口与本目录脚本保持一致。
+[安装 v2.2.1](https://raw.githubusercontent.com/chaowushang/Eye-protection/main/eye-protection/huyan.user.js)。需先安装 Tampermonkey 或兼容用户脚本管理器。沿用旧脚本的 name/namespace 及 `colorValue`、`disabledSites` 存储键；升级后检查是否替换原实例，同一脚本只启用一份。根目录旧入口与本目录脚本保持一致。
 
 ## 使用
 
 油猴菜单中选择四种颜色，或在当前站点启用/禁用，无需刷新。禁用会移除本脚本的背景覆盖。站点按 hostname 区分，子域名需单独设置。偏好由脚本管理器保存，不保证跨设备同步。旧管理器若不支持注销菜单，会使用固定的“切换此站启用/禁用”菜单。
+
+## v2.2.1 正式发布（2026-11-01）
+
+安装及自动更新地址切换至 main；保留根目录旧安装入口和原有配置。
 
 ## v2.2 更新
 

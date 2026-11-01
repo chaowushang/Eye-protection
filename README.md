@@ -2,48 +2,54 @@
 
 一款轻量的浏览器护眼用户脚本，通过替换网页中的浅色内容背景改善阅读观感。仓库同时维护独立的微信读书翻页脚本。
 
-> 两个脚本独立安装、独立维护。护眼更新见 `feature/eye-protection` 分支，微信读书更新见 `feature/wechat-read` 分支。
+> 两个脚本独立安装、独立维护。当前正式版本：护眼 **v2.2.1**、微信读书翻页 **v1.2.1**。安装与自动更新均使用 main 稳定入口。
 
 ## 🌟 核心功能
 
-*   **智能变色**：识别符合尺寸和颜色条件的浅色内容容器；更新分支采用保守规则，跳过背景图片、渐变和编辑区域。复杂网站仍可能需要单独适配。
+*   **智能变色**：识别符合尺寸和颜色条件的浅色内容容器；当前版本采用保守规则，跳过背景图片、渐变和编辑区域。复杂网站仍可能需要单独适配。
 *   **四种主题可选**：
     *   🌾 **乡土黄**：经典纸张质感，适合长时间文字阅读。
     *   🍵 **豆沙绿**：经典浅绿配色，清新自然。
     *   🎨 **浅色灰**：低调简约，适合各类办公与设计类网页。
     *   🍃 **淡橄榄**：温润如玉，提供柔和的浅色背景。
-*   **动态内容支持**：使用 MutationObserver 处理动态内容；更新分支还会重新评估已有容器的 class/style 等变化。
+*   **动态内容支持**：使用 MutationObserver 处理动态内容；当前版本还会重新评估已有容器的 class/style 等变化。
 *   **站点黑名单**：通过油猴菜单一键禁用/启用特定网站，灵活管理。
-*   **性能优化**：采用元素标记和待处理队列，更新分支将样式检测分帧执行；实际开销随网页规模和更新频率变化。
+*   **性能优化**：采用元素标记和待处理队列，当前版本将样式检测分帧执行；实际开销随网页规模和更新频率变化。
 
 ## 📁 目录与维护分支
 
 | 脚本 | 独立目录 | 更新分支 | 安装及说明 |
 |---|---|---|---|
-| 护眼脚本 | `eye-protection/` | `feature/eye-protection` | [护眼使用说明](https://github.com/chaowushang/Eye-protection/blob/feature/eye-protection/eye-protection/README.md) |
-| 微信读书翻页 | `wechat-read/` | `feature/wechat-read` | [微信读书使用说明](https://github.com/chaowushang/Eye-protection/blob/feature/wechat-read/wechat-read/README.md) |
+| 护眼脚本 | `eye-protection/` | `feature/eye-protection` | [护眼使用说明](https://github.com/chaowushang/Eye-protection/blob/main/eye-protection/README.md) |
+| 微信读书翻页 | `wechat-read/` | `feature/wechat-read` | [微信读书使用说明](https://github.com/chaowushang/Eye-protection/blob/main/wechat-read/README.md) |
 
-两个更新分支从同一目录整理提交分出，各自只更新对应脚本、测试及说明。合并后可在同一仓库的两个目录中继续维护。根目录 `huyan.user.js` 保留为旧护眼安装入口，其内容应与护眼目录中的脚本一致；原 `微信读书` 文件移入 `wechat-read/wechat-read.user.js`。
+两个维护分支从同一目录整理提交分出，分别维护对应脚本、测试及说明；正式发布统一合并到 main，并在两个目录中独立维护。根目录 `huyan.user.js` 保留为旧护眼安装入口，其内容应与护眼目录中的脚本一致；原 `微信读书` 文件移入 `wechat-read/wechat-read.user.js`。
 
 ## 🚀 安装方式
 
 1.  **准备环境**：确保浏览器已安装脚本管理器，如 [Tampermonkey](https://www.tampermonkey.net/)、Violentmonkey 或 GreaseMonkey。
 2.  **一键安装**：点击下方链接即可自动弹出安装界面：
-    *   👉 [**安装更新版护眼脚本**](https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/eye-protection/eye-protection/huyan.user.js)
-    *   👉 [**安装更新版微信读书翻页脚本**](https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/wechat-read/wechat-read/wechat-read.user.js)
-3.  **在线更新**：更新版脚本配置了各自维护分支的更新地址，检查频率由脚本管理器决定。旧版用户需手动安装一次对应更新版；同一脚本请只保留一份启用实例。
+    *   👉 [**安装更新版护眼脚本**](https://raw.githubusercontent.com/chaowushang/Eye-protection/main/eye-protection/huyan.user.js)
+    *   👉 [**安装更新版微信读书翻页脚本**](https://raw.githubusercontent.com/chaowushang/Eye-protection/main/wechat-read/wechat-read.user.js)
+3.  **在线更新**：正式版脚本配置了 main 分支的更新地址，检查频率由脚本管理器决定。旧版用户需手动安装一次对应更新版；同一脚本请只保留一份启用实例。
 
 ## 🛠 使用说明
 
 安装完成后，点击浏览器右上角的油猴插件图标，在“护眼脚本”菜单下即可进行操作：
 
-*   **切换颜色**：更新分支支持无需刷新切换四种护眼背景色。
-*   **在此站启用/禁用**：按当前 hostname 保存禁用状态，子域名单独管理；更新分支支持即时启停并恢复原背景。
+*   **切换颜色**：当前版本支持无需刷新切换四种护眼背景色。
+*   **在此站启用/禁用**：按当前 hostname 保存禁用状态，子域名单独管理；当前版本支持即时启停并恢复原背景。
 *   **设置永久生效**：脚本通过脚本管理器保存颜色及站点禁用列表，并兼容旧版存储键；跨设备同步取决于管理器本身的能力与配置。
 
 ## 📈 更新日志
 
-更新分支的具体版本、修复内容及验证方法分别记录在两个目录的 README 中。以下保留原有历史记录；历史性能和适配描述不代表已覆盖所有网站。
+### 2026-11-01 正式发布
+
+- 护眼 v2.2.1：保留四种配色和旧设置，支持即时切色及启停，修复透明背景和背景图误伤，完善动态内容处理。
+- 微信读书 v1.2.1：保留空格和滚轮翻页，修复重复事件、缩放拦截及惯性连翻，限定阅读区域并完善防误触。
+- 两个脚本分目录维护，统一使用 main 安装与更新地址；13 项隔离回归测试通过，真实网页兼容性仍需持续验证。
+
+具体修复内容及验证方法分别记录在两个目录的 README 中。以下保留原有历史记录；历史性能和适配描述不代表已覆盖所有网站。
 
 
 ### v2.1（历史版本）
@@ -83,7 +89,7 @@
 
 ## 🧪 开发与验证
 
-使用 Node.js 22 或更新版本，无需安装依赖。运行对应分支的测试：
+使用 Node.js 22 或更新版本，无需安装依赖。运行全部测试：
 
 ```sh
 node --test tests/*.test.cjs
