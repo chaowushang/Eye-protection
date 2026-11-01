@@ -1,118 +1,97 @@
 // ==UserScript==
 // @name         微信读书网页版空格与滚轮翻页
 // @namespace    https://github.com/chaowushang/wechat-read-space-flip
-// @version      1.1
+// @version      1.2
 // @author       wushang
-// @description  在微信读书网页版阅读时，可以通过按下空格键跳到下一页，也可以使用鼠标滚轮上下翻页。自动防误触。
+// @description  阅读区空格下一页、滚轮上下翻页，避让输入框、弹窗与缩放手势。
 // @match        *://weread.qq.com/*
 // @grant        none
 // @run-at       document-start
-// @license MIT
+// @license      MIT
+// @downloadURL  https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/wechat-read/wechat-read/wechat-read.user.js
+// @updateURL    https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/wechat-read/wechat-read/wechat-read.user.js
 // ==/UserScript==
 
-(function() {
+(() => {
     'use strict';
+    const READER = '.readerChapterContent, .app_content';
+    const UI = '.readerCatalog,.readerNotePanel,.wr_white_dialog,.menu_container,[role="dialog"],[aria-modal="true"]';
+    const EDITABLE = 'input,textarea,select,button,a[href],[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="button"],[role="slider"]';
+    const QUIET_MS = 250;
+    const MIN_DELTA = 40;
+    let lastWheel = -Infinity;
+    let gestureHandled = false;
+    let accumulated = 0;
+    let direction = 0;
+    let lastPath = '';
 
-    /**
-     * 核心逻辑说明：
-     * 1. 微信读书原生支持左右方向键翻页。
-     * 2. 空格键拦截：转换为向右方向键信号发送。
-     * 3. 鼠标滚轮拦截：向下滚动转为向右方向键，向上滚动转为向左方向键。
-     * 4. 频率限制：加入冷却机制，防止滚轮一次触发引发连续翻十页。
-     * 5. 区域识别：智能避开目录、笔记面板等自身需要垂直滚动的 UI 区域。
-     */
+    function reader() {
+        if (!/^\/web\/reader\//.test(location.pathname)) return null;
+        const el = document.querySelector(READER);
+        return el && el.getClientRects().length ? el : null;
+    }
 
-    // 辅助函数：构造并派发方向键事件
-    const dispatchKeyEvent = (keyName, keyCode) => {
-        const nextEvent = new KeyboardEvent('keydown', {
-            key: keyName,
-            keyCode: keyCode,
-            code: keyName,
-            which: keyCode,
-            bubbles: true,
-            cancelable: true
-        });
-        window.dispatchEvent(nextEvent);
-        document.dispatchEvent(nextEvent);
-    };
+    function eventElement(e) {
+        const target = e.composedPath?.()[0] || e.target;
+        return target instanceof Element ? target : target?.parentElement;
+    }
 
-    const init = () => {
-        // --- 1. 监听空格键翻页 ---
-        window.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.code === 'Space') {
-                const activeEl = document.activeElement;
-                
-                // 确保在输入框打字时不触发翻页
-                const isTyping = activeEl.tagName === 'INPUT' || 
-                                 activeEl.tagName === 'TEXTAREA' || 
-                                 activeEl.isContentEditable;
+    function blocked(target) {
+        return target?.closest(`${EDITABLE},${UI}`) ||
+            document.activeElement?.closest(`${EDITABLE},${UI}`) ||
+            [...document.querySelectorAll(UI)].some(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+    }
 
-                if (!isTyping) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    dispatchKeyEvent('ArrowRight', 39);
-                }
-            }
-        }, true);
+    function dispatchArrow(forward) {
+        const key = forward ? 'ArrowRight' : 'ArrowLeft';
+        // One dispatch only; document's event bubbles to window naturally.
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+            key, code: key, keyCode: forward ? 39 : 37, which: forward ? 39 : 37,
+            bubbles: true, cancelable: true
+        }));
+    }
 
-        // --- 2. 监听鼠标滚轮翻页 ---
-        let isThrottled = false; // 用于控制翻页频率的冷却锁
-        
-        window.addEventListener('wheel', (e) => {
-            let target = e.target;
-            let shouldIgnore = false;
-            
-            // 向上遍历DOM树，检查鼠标是否停留在需要原生滚动的弹窗、侧边栏上
-            while (target && target !== document.body) {
-                // 如果元素内容超出了自身高度，且设置了可以垂直滚动，则应该放行原生的滚轮操作
-                const style = window.getComputedStyle(target);
-                const isScrollable = target.scrollHeight > target.clientHeight && 
-                                    (style.overflowY === 'auto' || style.overflowY === 'scroll');
-                
-                // 特殊 UI 容器白名单（例如目录、想法面板）
-                const className = (typeof target.className === 'string') ? target.className : '';
-                const isUIContainer =['readerCatalog', 'readerNotePanel', 'wr_white_dialog', 'menu_container'].some(cls => className.includes(cls));
+    function hasModifier(e) {
+        return e.ctrlKey || e.metaKey || e.altKey || e.shiftKey;
+    }
 
-                if (isScrollable || isUIContainer) {
-                    shouldIgnore = true;
-                    break;
-                }
-                target = target.parentElement;
-            }
+    window.addEventListener('keydown', e => {
+        if (e.defaultPrevented || (e.key !== ' ' && e.code !== 'Space')) return;
+        if (hasModifier(e) || e.isComposing || !reader() || blocked(eventElement(e))) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!e.repeat) dispatchArrow(true);
+    }, true);
 
-            // 如果鼠标悬停在弹窗或可滚动列表内，脚本不介入，放行默认操作
-            if (shouldIgnore) return;
-
-            // 拦截正文阅读区的默认滚轮行为
-            e.preventDefault();
-            e.stopImmediatePropagation();
-
-            // 如果仍在冷却时间内，直接忽略本次滚轮事件
-            if (isThrottled) return;
-
-            if (e.deltaY > 0) {
-                // 滚轮向下滚动 -> 下一页 (模拟右方向键)
-                dispatchKeyEvent('ArrowRight', 39);
-                lockScroll();
-            } else if (e.deltaY < 0) {
-                // 滚轮向上滚动 -> 上一页 (模拟左方向键)
-                dispatchKeyEvent('ArrowLeft', 37);
-                lockScroll();
-            }
-        }, { passive: false, capture: true }); // 使用 capture 并取消 passive，确保能够调用 preventDefault
-
-        // 翻页冷却计时器
-        const lockScroll = () => {
-            isThrottled = true;
-            setTimeout(() => {
-                isThrottled = false;
-            }, 200); // 冷却时间 300 毫秒。如果你觉得翻页慢，可以调小(如200)；觉得翻得太快容易飞，可以调大(如400)
-        };
-    };
-
-    // 启动监听
-    init();
-
-    console.log('微信读书空格与滚轮翻页脚本已加载');
+    window.addEventListener('wheel', e => {
+        if (e.defaultPrevented || hasModifier(e) || !e.deltaY || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+        const content = reader();
+        const target = eventElement(e);
+        if (!content || !target || !content.contains(target) || blocked(target)) return;
+        // Preserve independently scrollable panels nested inside the reader.
+        for (let el = target; el && el !== content; el = el.parentElement) {
+            const style = getComputedStyle(el);
+            if (/(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1) return;
+        }
+        const now = performance.now();
+        if (location.pathname !== lastPath || now - lastWheel > QUIET_MS) {
+            accumulated = 0;
+            direction = 0;
+            gestureHandled = false;
+        }
+        lastPath = location.pathname;
+        lastWheel = now;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (gestureHandled) return;
+        const nextDirection = Math.sign(e.deltaY);
+        if (direction !== nextDirection) accumulated = 0;
+        direction = nextDirection;
+        const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+        accumulated += Math.abs(e.deltaY) * unit;
+        if (accumulated >= MIN_DELTA) {
+            gestureHandled = true;
+            dispatchArrow(direction > 0);
+        }
+    }, { capture: true, passive: false });
 })();
-
