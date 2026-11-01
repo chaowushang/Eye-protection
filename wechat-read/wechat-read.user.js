@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         微信读书网页版空格与滚轮翻页
 // @namespace    https://github.com/chaowushang/wechat-read-space-flip
-// @version      1.2
+// @version      1.2.1
 // @author       wushang
 // @description  阅读区空格下一页、滚轮上下翻页，避让输入框、弹窗与缩放手势。
 // @match        *://weread.qq.com/*
 // @grant        none
 // @run-at       document-start
 // @license      MIT
-// @downloadURL  https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/wechat-read/wechat-read/wechat-read.user.js
-// @updateURL    https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/wechat-read/wechat-read/wechat-read.user.js
+// @downloadURL  https://raw.githubusercontent.com/chaowushang/Eye-protection/main/wechat-read/wechat-read.user.js
+// @updateURL    https://raw.githubusercontent.com/chaowushang/Eye-protection/main/wechat-read/wechat-read.user.js
 // ==/UserScript==
 
 (() => {

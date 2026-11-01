@@ -4,9 +4,13 @@
 
 ## 安装与使用
 
-[安装 v1.2](https://raw.githubusercontent.com/chaowushang/Eye-protection/feature/wechat-read/wechat-read/wechat-read.user.js)。需要用户脚本管理器。旧版用户手动安装一次；沿用原 name/namespace，同一脚本只保留一个启用实例。
+[安装 v1.2.1](https://raw.githubusercontent.com/chaowushang/Eye-protection/main/wechat-read/wechat-read.user.js)。需要用户脚本管理器。旧版用户手动安装一次；沿用原 name/namespace，同一脚本只保留一个启用实例。
 
 在 `/web/reader/` 阅读页面使用。空格按一次翻一页；长按不连续翻页。滚轮仅在正文容器内启用；目录、笔记、输入框、按钮和可滚动子面板保留原操作。Ctrl/Meta/Alt/Shift 修饰的操作、横向滚动及输入法组合输入均不介入。空格作用于阅读页面，但当焦点在交互控件或有可见弹窗时不翻页。
+
+## v1.2.1 正式发布（2026-11-01）
+
+安装及自动更新地址切换至 main，保留 v1.2 的翻页行为和防误触修复。
 
 ## v1.2 更新
 
